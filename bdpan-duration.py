@@ -235,6 +235,76 @@ def walk(cl, root, exts):
     return found
 
 
+# ---------------------------------------------------------------- 目录浏览
+
+def _all_items(cl, path, cap=None):
+    """把一个目录的全部条目取回来，cap 用于只看第一页。"""
+    items, page = [], 1
+    while True:
+        batch = list_dir(cl, path, page)
+        if not batch:
+            break
+        items.extend(batch)
+        if (cap and len(items) >= cap) or len(batch) < 100:
+            break
+        page += 1
+    return items
+
+
+def show_tree(cl, root):
+    """只列目录结构，不探测时长。给第一次用的人找路径。"""
+    items = _all_items(cl, root)
+    if not items:
+        sys.exit(yellow(f'目录 {root} 是空的，或者不存在。'))
+
+    dirs = [i for i in items if i.get('isdir')]
+    here = [i for i in items if not i.get('isdir')
+            and i.get('path', '').lower().endswith(VIDEO_EXT)]
+
+    print()
+    print(bold(f'目录 {root}'))
+    if here:
+        print(f'  直接放在这里的视频：{green(str(len(here)))} 个')
+    if not dirs:
+        print(dim('  没有子文件夹，直接扫这个目录就行。'))
+        print()
+        return
+
+    print(f'  子文件夹 {len(dirs)} 个：')
+    rows = []
+    for d in sorted(dirs, key=lambda x: x.get('path', '')):
+        p = d.get('path', '')
+        sub = _all_items(cl, p, cap=100)
+        nv = sum(1 for i in sub if not i.get('isdir')
+                 and i.get('path', '').lower().endswith(VIDEO_EXT))
+        nd = sum(1 for i in sub if i.get('isdir'))
+        rows.append((p, nv, nd, len(sub) >= 100))
+
+    width = max(len(r[0]) for r in rows) + 2
+    for p, nv, nd, capped in rows:
+        line = '    ' + p.ljust(width)
+        if nv:
+            line += green(f'{nv}{"+" if capped else ""} 个视频')
+        elif nd:
+            # 视频都在更深一层，提醒继续往下看，别误以为这里是空的
+            line += f'{nd}{"+" if capped else ""} 个子文件夹 →'
+        elif capped:
+            line += dim('100+ 项，未细数')
+        else:
+            line += dim('无视频')
+        print(line)
+
+    print()
+    deeper = [r for r in rows if r[2]]
+    if deeper:
+        print(dim('「→」表示视频在更深一层，用 --browse 进去看：'))
+        print(dim(f'  python3 {os.path.basename(sys.argv[0])} {deeper[0][0]} --browse'))
+    best = max(rows, key=lambda r: r[1])
+    if best[1]:
+        print(dim('也可以直接扫一个：'))
+        print(dim(f'  python3 {os.path.basename(sys.argv[0])} {best[0]} --limit 5'))
+
+
 # ---------------------------------------------------------------- 探测时长
 
 def probe(cl, path, log=None):
@@ -584,9 +654,12 @@ def main():
         description='批量读取百度网盘视频时长，生成 CSV / Markdown / HTML 清单。',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='示例：\n'
-               '  %(prog)s /学习 --limit 5\n'
-               '  %(prog)s /学习 --out ./report --workers 4\n')
-    ap.add_argument('dir', help='要扫描的网盘目录，如 /学习')
+               '  %(prog)s --browse            先看看网盘里有哪些文件夹\n'
+               '  %(prog)s /学习 --limit 5     试跑 5 个文件\n'
+               '  %(prog)s /学习 --out ./report\n')
+    ap.add_argument('dir', nargs='?', default=None, help='要扫描的网盘目录，如 /学习')
+    ap.add_argument('--browse', action='store_true',
+                    help='只列目录、不探测时长；不带目录时列根目录')
     ap.add_argument('--out', default='./bdpan-report', help='输出目录（默认 ./bdpan-report）')
     ap.add_argument('--ext', default=None, help='只扫这些扩展名，逗号分隔（默认常见视频格式）')
     ap.add_argument('--limit', type=int, default=0, help='最多处理多少个文件，用于试跑')
@@ -597,6 +670,10 @@ def main():
     ap.add_argument('--version', action='version', version=f'bdpan-duration {__version__}')
     args = ap.parse_args()
 
+    if not args.dir and not args.browse:
+        ap.error(f'要扫描哪个目录？例如：{ap.prog} /学习\n'
+                 f'不知道有哪些目录的话，先跑：{ap.prog} --browse')
+
     if sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8'):
         try:
             sys.stdout.reconfigure(encoding='utf-8')
@@ -604,13 +681,17 @@ def main():
             pass
 
     _bduss_holder['v'] = get_bduss(args)
+    cl = client()
+
+    if args.browse:
+        show_tree(cl, (args.dir or '/').rstrip('/') or '/')
+        return
 
     print()
     print(bold(f'扫描目录：{args.dir}'))
     exts = tuple(e.strip().lower() if e.startswith('.') else '.' + e.strip().lower()
                  for e in args.ext.split(',')) if args.ext else VIDEO_EXT
 
-    cl = client()
     rows = walk(cl, args.dir, exts)
     if not rows:
         sys.exit(yellow('没有找到视频文件。检查目录是否存在、扩展名是否匹配。'))

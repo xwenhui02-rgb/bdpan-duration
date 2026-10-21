@@ -66,20 +66,64 @@ flowchart LR
 
 ## 快速开始
 
-需要 Python 3.7+，**不需要 pip install 任何东西**。
+### 第 0 步：有 Python 吗
+
+macOS / Linux 一般自带。终端里敲 `python3 --version`，能出版本号就跳过这步。
+
+Windows 不自带，去 [python.org/downloads](https://www.python.org/downloads/) 下载安装包，**安装时勾上「Add python.exe to PATH」**，装完重开终端。
+
+本项目**不需要 pip install 任何东西**——只用标准库，clone 下来就能跑。
+
+### 第 1 步：拿到代码
 
 ```bash
 git clone https://github.com/xwenhui02-rgb/bdpan-duration.git
 cd bdpan-duration
+```
 
-# 先试 5 个，确认能跑通
+没装 git 的话，点仓库右上角 `Code` → `Download ZIP`，解压后进目录，效果一样。
+
+### 第 2 步：先看看你网盘里有什么
+
+第一次跑，最容易卡在「我该扫哪个目录」。所以先浏览：
+
+```bash
+python3 bdpan-duration.py --browse
+```
+
+```
+目录 /
+  直接放在这里的视频：1 个
+  子文件夹 18 个：
+    /学习              5 个子文件夹 →
+    /电影              1 个子文件夹 →
+    /素材              96 个视频
+    /备份              无视频
+```
+
+「→」表示视频在更深一层。想看里面，把它加到命令后面：
+
+```bash
+python3 bdpan-duration.py /学习 --browse
+```
+
+### 第 3 步：试跑 5 个
+
+```bash
 python3 bdpan-duration.py /学习 --limit 5
+```
 
-# 没问题再全量跑
+第一次会要你粘贴 BDUSS（怎么拿见下一节）。5 个大概几十秒，先确认输出对不对。
+
+### 第 4 步：全量跑
+
+```bash
 python3 bdpan-duration.py /学习 --out ./report
 ```
 
-Windows 上把 `python3` 换成 `python` 或 `py`。
+1000 个文件大约 10–20 分钟。中途断了不要紧，**原样再跑一次会接着来**，不会重头算。
+
+Windows 上把 `python3` 换成 `python`。
 
 ### 获取 BDUSS（第一次用会提示你粘贴）
 
@@ -114,7 +158,8 @@ python3 bdpan-duration.py /学习
 
 | 参数 | 说明 | 默认 |
 |---|---|---|
-| `dir` | 要扫描的网盘目录，如 `/学习` | 必填 |
+| `dir` | 要扫描的网盘目录，如 `/学习` | 扫描时必填 |
+| `--browse` | 只列目录结构、不探测时长；不带目录时列根目录 | 关 |
 | `--out` | 输出目录 | `./bdpan-report` |
 | `--limit` | 最多处理多少个文件，用于试跑 | 全部 |
 | `--workers` | 并发数 | `4` |
