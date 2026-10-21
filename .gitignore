@@ -8,3 +8,7 @@ bdpan-probe/
 report/
 inventory.csv
 inventory.md
+
+# 断点缓存
+.cache.json
+.cache.json.tmp

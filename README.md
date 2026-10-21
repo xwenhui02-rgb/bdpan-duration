@@ -4,6 +4,10 @@
 
 零依赖 · 单文件 · 纯标准库 · 不上传任何数据
 
+[![test](https://github.com/xwenhui02-rgb/bdpan-duration/actions/workflows/test.yml/badge.svg)](https://github.com/xwenhui02-rgb/bdpan-duration/actions/workflows/test.yml)
+[![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 > [!IMPORTANT]
 > **你的 BDUSS 只存在于本机内存。** 不写磁盘、不写日志、不上传、没有任何服务端——所有请求从你的电脑直连百度，中间不经过作者或第三方。代码是单文件纯标准库，五分钟能读完。详细说明见下方「凭证边界」一节。
 
@@ -113,12 +117,27 @@ python3 bdpan-duration.py /学习
 | `--ext` | 只扫这些扩展名，逗号分隔 | `.mp4,.m4v,.mov,.mkv,.avi,.flv,.wmv,.webm,.ts` |
 | `--from-browser` | 从本机浏览器读 Cookie | 关 |
 | `--bduss` | 直接传入 BDUSS（会留 shell 历史，不建议） | — |
+| `--refresh` | 忽略断点缓存，全部重新探测 | 关 |
+| `--version` | 显示版本号 | — |
 
 ### 并发怎么调
 
 - **默认 4 已经够快**，1000 个文件大约 10–20 分钟。
 - 如果出现 `120 触发访问频率限制` 或大量失败，**降到 2**。
 - **不要超过 8**。请求打太猛可能触发临时限制，属于得不偿失。
+
+### 跑到一半断了怎么办
+
+不用从头再来。结果会实时写进 `<输出目录>/.cache.json`，**重跑同一条命令会自动跳过已经拿到的**：
+
+```bash
+# 中断了？原样再跑一次就行
+python3 bdpan-duration.py /学习 --out ./report
+```
+
+想强制全部重算，加 `--refresh`。
+
+缓存文件里只有 `fs_id`、时长和完整标记，**不含任何账号信息**，也已经在 `.gitignore` 里排除了。
 
 ## 输出
 
@@ -181,6 +200,26 @@ BDUSS 失效了。重新获取一次。
 仓库里附带 `SKILL.md`，如果你用 Claude Code / WorkBuddy 这类支持 Skill 的 Agent，把整个目录放进 skills 目录即可通过自然语言触发：
 
 > "帮我统计一下网盘 /学习 目录里所有视频的时长"
+
+## 开发
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+23 个离线测试，不联网、不需要 BDUSS，覆盖时长解析、两遍取优、错误码识别、缓存读写和三种输出格式。CI 在 Python 3.8 / 3.10 / 3.12 / 3.13 上跑一遍。
+
+代码结构：
+
+| 位置 | 作用 |
+|---|---|
+| `walk()` | 递归枚举目录，处理分页 |
+| `probe()` | 请求 HLS 列表并累加 `#EXTINF` |
+| `_better()` | 两次探测结果取优 |
+| `Cache` | 断点缓存 |
+| `write_csv/md/html()` | 三种输出 |
+
+想贡献的话，最容易上手的是补 `ERR_HINT` 里还没覆盖的错误码——遇到新错误码时把它的含义加进字典就行。
 
 ## 免责声明
 

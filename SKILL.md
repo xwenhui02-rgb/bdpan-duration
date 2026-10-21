@@ -56,6 +56,8 @@ BAIDU_BDUSS="$BDUSS" python3 bdpan-duration.py /学习 --out ./report --workers 
 
 1000 个文件大约 10–20 分钟。**不要擅自提高 `--workers` 到 8 以上**，会触发限流。
 
+结果会实时写入 `<输出目录>/.cache.json`。**如果中途断了，原样重跑同一条命令即可**——已完成的会自动跳过，只有失败和未处理的会重新探测。要强制全部重算才加 `--refresh`。
+
 ### 4. 汇报结果
 
 读 `inventory.csv` 或 `inventory.md`，向用户汇报：
@@ -66,6 +68,8 @@ BAIDU_BDUSS="$BDUSS" python3 bdpan-duration.py /学习 --out ./report --workers 
 - 异常项：码率明显偏离同类（可能是 4K 原片）
 
 HTML 报告可以直接用浏览器打开给用户看。
+
+脚本退出码：`0` 全部成功，`1` 有文件没拿到时长（结果仍然可用）。据此判断要不要补跑。
 
 ## 常见错误处理
 

@@ -25,6 +25,9 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+from collections import Counter
+
+__version__ = '1.1.0'
 
 API_LIST = 'https://pan.baidu.com/rest/2.0/xpan/file'
 API_STREAM = 'https://d.pcs.baidu.com/rest/2.0/pcs/file'
@@ -280,6 +283,62 @@ def fmt_hms(secs):
     return f'{h}:{m:02d}:{s:02d}' if h else f'{m}:{s:02d}'
 
 
+# ---------------------------------------------------------------- 断点缓存
+
+class Cache:
+    """把探测结果落到 JSON，中断后重跑能跳过已完成的文件。
+
+    只记录 fs_id、时长和完整标记，不含任何账号信息。
+    """
+
+    VERSION = 1
+
+    def __init__(self, path, root):
+        self.path = path
+        self.root = root
+        self.items = {}
+        self.lock = threading.Lock()
+        self.savelock = threading.Lock()
+        self.pending = 0
+        self._load()
+
+    def _load(self):
+        try:
+            with open(self.path, encoding='utf-8') as f:
+                j = json.load(f)
+        except (OSError, ValueError):
+            return
+        # 换目录扫描时旧缓存不适用，直接忽略
+        if j.get('version') == self.VERSION and j.get('root') == self.root:
+            self.items = j.get('items', {})
+
+    def get(self, fsid):
+        with self.lock:
+            return self.items.get(fsid)
+
+    def put(self, fsid, probe):
+        if not probe.get('secs'):
+            return
+        with self.lock:
+            self.items[fsid] = probe
+            self.pending += 1
+            flush = self.pending >= 20
+            if flush:
+                self.pending = 0
+        if flush:
+            self.save()
+
+    def save(self):
+        with self.savelock:
+            with self.lock:
+                data = {'version': self.VERSION, 'root': self.root,
+                        'items': dict(self.items)}
+            tmp = self.path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False)
+            os.replace(tmp, self.path)
+
+
 # ---------------------------------------------------------------- 并发跑批
 
 def _better(a, b):
@@ -293,7 +352,7 @@ def _better(a, b):
     return b if (b.get('secs') or 0) > (a.get('secs') or 0) else a
 
 
-def run_batch(rows, workers, label):
+def run_batch(rows, workers, label, cache=None):
     q = queue.Queue()
     for r in rows:
         q.put(r)
@@ -308,6 +367,8 @@ def run_batch(rows, workers, label):
             except queue.Empty:
                 return
             r['probe'] = _better(r.get('probe'), probe(cl, r['path']))
+            if cache:
+                cache.put(r['fs_id'], r['probe'])
             with lock:
                 done[0] += 1
                 n = done[0]
@@ -325,14 +386,26 @@ def run_batch(rows, workers, label):
     progress_done()
 
 
-def scan(rows, workers):
-    run_batch(rows, workers, '第一遍')
+def scan(rows, workers, cache):
+    todo = []
+    for r in rows:
+        hit = cache.get(r['fs_id']) if cache else None
+        if hit and hit.get('complete'):
+            r['probe'] = hit
+        else:
+            todo.append(r)
 
-    # 只重跑列表不完整的：转码没跑完时第一次只能拿到前几段
-    suspect = [r for r in rows if not (r.get('probe') or {}).get('complete')]
-    if suspect:
-        print(yellow(f'发现 {len(suspect)} 个列表不完整，开始第二遍校验'))
-        run_batch(suspect, max(2, workers // 2), '校验中')
+    if len(todo) < len(rows):
+        print(dim(f'缓存命中 {len(rows) - len(todo)} 个，跳过探测'))
+
+    if todo:
+        run_batch(todo, workers, '第一遍', cache)
+
+        # 只重跑列表不完整的：转码没跑完时第一次只能拿到前几段
+        suspect = [r for r in todo if not (r.get('probe') or {}).get('complete')]
+        if suspect:
+            print(yellow(f'{len(suspect)} 个列表不完整，开始第二遍校验'))
+            run_batch(suspect, max(2, workers // 2), '校验中', cache)
 
     for r in rows:
         p = r.get('probe') or {}
@@ -509,6 +582,8 @@ def main():
     ap.add_argument('--workers', type=int, default=4, help='并发数，默认 4；被限流就降到 2')
     ap.add_argument('--bduss', default=None, help='直接传入 BDUSS（不建议，会留在 shell 历史里）')
     ap.add_argument('--from-browser', action='store_true', help='尝试从本机浏览器读 Cookie')
+    ap.add_argument('--refresh', action='store_true', help='忽略断点缓存，全部重新探测')
+    ap.add_argument('--version', action='version', version=f'bdpan-duration {__version__}')
     args = ap.parse_args()
 
     if sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8'):
@@ -532,15 +607,22 @@ def main():
         rows = rows[:args.limit]
         print(dim(f'已按 --limit 限制为前 {len(rows)} 个'))
 
+    os.makedirs(args.out, exist_ok=True)
+    cache = None if args.refresh else Cache(
+        os.path.join(args.out, '.cache.json'), args.dir)
+
     print(f'开始探测时长（{args.workers} 并发）…')
-    scan(rows, args.workers)
+    try:
+        scan(rows, args.workers, cache)
+    finally:
+        if cache:
+            cache.save()
     enrich(rows)
 
     ok = sum(1 for r in rows if r['secs'])
     full = sum(1 for r in rows if r['complete'])
     total = sum(r['secs'] or 0 for r in rows)
 
-    os.makedirs(args.out, exist_ok=True)
     csv_p = os.path.join(args.out, 'inventory.csv')
     md_p = os.path.join(args.out, 'inventory.md')
     html_p = os.path.join(args.out, 'inventory.html')
@@ -556,17 +638,19 @@ def main():
 
     bad = [r for r in rows if not r['secs']]
     if bad:
-        print(yellow(f'  {len(bad)} 个失败，常见原因：'))
-        for r in bad[:5]:
-            hint = ERR_HINT.get(r['code'], '转码未完成或网络中断')
-            print(dim(f'    · {r["name"]}  {hint}'))
-        print(dim('    可以用 --limit 单独重跑，或过几分钟再试。'))
+        print(yellow(f'  {len(bad)} 个失败：'))
+        for code, n in Counter(r['code'] for r in bad).most_common():
+            print(dim(f'    {n:>4} 个 · {ERR_HINT.get(code, "未知原因")}'))
+        print(dim('  已完成的都存进缓存了，重跑同一条命令会自动跳过它们。'))
 
     print()
     for p in (html_p, csv_p, md_p):
         print('  ' + p)
     print()
     print(dim('提示：inventory.html 直接用浏览器打开，支持按文件名搜索。'))
+
+    if bad:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
