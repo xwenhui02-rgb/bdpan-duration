@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# 默认输出目录，避免误提交自己的网盘清单
+bdpan-report/
+bdpan-probe/
+report/
+inventory.csv
+inventory.md
