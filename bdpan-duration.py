@@ -94,25 +94,73 @@ def progress_done():
 
 # ---------------------------------------------------------------- 凭证
 
+def _clean_bduss(v):
+    """用户常常连 BDUSS= 或引号一起复制过来。"""
+    v = (v or '').strip().strip('"\'')
+    if v.lower().startswith('bduss='):
+        v = v[6:]
+    return v.strip()
+
+
 def get_bduss(args):
     """按优先级取 BDUSS，全程只存在内存里。"""
     if args.bduss:
-        return args.bduss.strip()
+        return _clean_bduss(args.bduss)
     if os.environ.get('BAIDU_BDUSS'):
-        return os.environ['BAIDU_BDUSS'].strip()
+        return _clean_bduss(os.environ['BAIDU_BDUSS'])
     if args.from_browser:
         return _from_browser()
 
-    print(dim('未检测到 BDUSS。获取方式：浏览器登录 pan.baidu.com → F12 →'))
-    print(dim('Application → Cookies → .baidu.com → 复制 BDUSS 那一行的 Value'))
-    print()
+    _login_guide()
     try:
-        value = input('粘贴 BDUSS（输入不回显、不落盘）：').strip()
+        value = input('> ')
     except (EOFError, KeyboardInterrupt):
         sys.exit('\n已取消。')
+    value = _clean_bduss(value)
+
     if not value:
-        sys.exit('BDUSS 为空，退出。')
+        # 空回车 = 帮我打开浏览器，去登录自己的账号
+        print(dim('\n正在打开浏览器…'))
+        try:
+            import webbrowser
+            webbrowser.open('https://pan.baidu.com/disk/main')
+        except Exception:
+            print(dim('打不开就算了，手动访问 https://pan.baidu.com/disk/main'))
+        print()
+        _copy_guide()
+        try:
+            value = input('> ')
+        except (EOFError, KeyboardInterrupt):
+            sys.exit('\n已取消。')
+        value = _clean_bduss(value)
+
+    if not value:
+        sys.exit('没有拿到 BDUSS，退出。')
     return value
+
+
+def _login_guide():
+    print()
+    print(bold('登录你自己的百度网盘'))
+    print(dim('  接下来的所有操作只读你自己的账号，别人的数据碰不到。'))
+    print(dim('  凭证只留在内存里，不写盘、不上传。'))
+    print()
+    print('  已经知道怎么拿的话，直接粘贴就行。')
+    print(dim('  不知道从哪拿？按回车，我打开浏览器带你走一遍。'))
+    print()
+
+
+def _copy_guide():
+    print(bold('现在从登录好的页面里取出 BDUSS'))
+    print('  1. 在那个网盘页面上按 F12')
+    print('  2. 找 Application 标签（Firefox 叫「存储」）')
+    print('  3. 左边 Cookies → https://pan.baidu.com')
+    print('  4. 找到名为 BDUSS 的那一行，双击 Value 整行复制')
+    print('  5. 回到这里粘贴，回车')
+    print()
+    print(dim('  嫌麻烦？下次加 --from-browser 可以自动读'
+              '（需 pip install browser_cookie3）'))
+    print()
 
 
 def _from_browser():

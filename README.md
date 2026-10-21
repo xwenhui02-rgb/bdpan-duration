@@ -16,8 +16,12 @@
 用真实网盘里 **962 个视频**生成的清单，347 小时 / 269 GB。不下载、不登录就能点开看它长什么样。
 
 ```bash
-python3 bdpan-duration.py /学习
+python3 bdpan-duration.py --browse          # 看看你的网盘里有哪些目录
+python3 bdpan-duration.py /你的目录          # 换成你想要的任何一个
 ```
+
+> **目录是参数，不是写死的。** `/学习` 只是文档里的举例，换成 `/考研`、`/素材/课程`、`/电影/2024` 都行。
+> 你要哪一块，就填哪一块——工具会递归进去，把里面所有视频的时长一次算完。
 
 跑完得到 `inventory.html`——能按文件名搜索、按目录折叠、带总时长统计的本地网页。
 
@@ -110,7 +114,7 @@ python3 bdpan-duration.py /学习 --browse
 ### 第 3 步：试跑 5 个
 
 ```bash
-python3 bdpan-duration.py /学习 --limit 5
+python3 bdpan-duration.py /考研/数学 --limit 5   # 换成第 2 步里看到的任意路径
 ```
 
 第一次会要你粘贴 BDUSS（怎么拿见下一节）。5 个大概几十秒，先确认输出对不对。
@@ -118,16 +122,18 @@ python3 bdpan-duration.py /学习 --limit 5
 ### 第 4 步：全量跑
 
 ```bash
-python3 bdpan-duration.py /学习 --out ./report
+python3 bdpan-duration.py /考研/数学 --out ./report
 ```
 
 1000 个文件大约 10–20 分钟。中途断了不要紧，**原样再跑一次会接着来**，不会重头算。
 
 Windows 上把 `python3` 换成 `python`。
 
-### 获取 BDUSS（第一次用会提示你粘贴）
+### 第一次运行会引导你登录
 
-任选一种：
+没有检测到凭证时，程序会问你要 BDUSS。**直接按回车**，它会帮你打开 `pan.baidu.com`，你登录完再回来粘贴就行——不需要提前准备什么。
+
+拿到凭证的方式有三种，任选：
 
 **方式一：从浏览器复制（推荐，零依赖）**
 
@@ -136,11 +142,13 @@ Windows 上把 `python3` 换成 `python`。
 3. 左侧 `Cookies` → `https://pan.baidu.com`
 4. 找到名为 `BDUSS` 的那一行，复制 `Value` 列的完整内容
 
+复制成 `BDUSS=xxxx` 一整行也没关系，程序会自己去掉前缀和引号。
+
 **方式二：让它自己去读（需要额外装一个包）**
 
 ```bash
 pip install browser_cookie3
-python3 bdpan-duration.py /学习 --from-browser --limit 5
+python3 bdpan-duration.py --from-browser --browse
 ```
 
 macOS 会弹钥匙串授权框，点"允许"即可。Windows 上可能需要关掉 Chrome 的进程锁定。
@@ -149,7 +157,7 @@ macOS 会弹钥匙串授权框，点"允许"即可。Windows 上可能需要关�
 
 ```bash
 export BAIDU_BDUSS="你的BDUSS"
-python3 bdpan-duration.py /学习
+python3 bdpan-duration.py --browse
 ```
 
 不要用 `--bduss` 直接写在命令行里——它会进入 shell 历史记录。
@@ -181,7 +189,7 @@ python3 bdpan-duration.py /学习
 
 ```bash
 # 中断了？原样再跑一次就行
-python3 bdpan-duration.py /学习 --out ./report
+python3 bdpan-duration.py /考研/数学 --out ./report
 ```
 
 想强制全部重算，加 `--refresh`。
@@ -248,7 +256,8 @@ BDUSS 失效了。重新获取一次。
 
 仓库里附带 `SKILL.md`，如果你用 Claude Code / WorkBuddy 这类支持 Skill 的 Agent，把整个目录放进 skills 目录即可通过自然语言触发：
 
-> "帮我统计一下网盘 /学习 目录里所有视频的时长"
+> "帮我统计一下我网盘里所有视频的时长"
+> "看看 /考研 这个文件夹里的课一共多少小时、占多大"
 
 ## 开发
 
