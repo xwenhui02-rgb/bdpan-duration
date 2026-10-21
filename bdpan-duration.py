@@ -299,7 +299,7 @@ def _all_items(cl, path, cap=None):
     return items
 
 
-def show_tree(cl, root):
+def show_tree(cl, root, hint=True):
     """只列目录结构，不探测时长。给第一次用的人找路径。"""
     items = _all_items(cl, root)
     if not items:
@@ -343,6 +343,8 @@ def show_tree(cl, root):
         print(line)
 
     print()
+    if not hint:
+        return
     deeper = [r for r in rows if r[2]]
     if deeper:
         print(dim('「→」表示视频在更深一层，用 --browse 进去看：'))
@@ -702,12 +704,15 @@ def main():
         description='批量读取百度网盘视频时长，生成 CSV / Markdown / HTML 清单。',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='示例：\n'
-               '  %(prog)s --browse            先看看网盘里有哪些文件夹\n'
+               '  %(prog)s --wizard            向导：列目录、问你扫哪、直接开跑\n'
+               '  %(prog)s --browse            只看看网盘里有哪些文件夹\n'
                '  %(prog)s /学习 --limit 5     试跑 5 个文件\n'
                '  %(prog)s /学习 --out ./report\n')
     ap.add_argument('dir', nargs='?', default=None, help='要扫描的网盘目录，如 /学习')
     ap.add_argument('--browse', action='store_true',
                     help='只列目录、不探测时长；不带目录时列根目录')
+    ap.add_argument('--wizard', action='store_true',
+                    help='向导模式：先列目录，再问你要扫哪个，然后直接开跑')
     ap.add_argument('--out', default='./bdpan-report', help='输出目录（默认 ./bdpan-report）')
     ap.add_argument('--ext', default=None, help='只扫这些扩展名，逗号分隔（默认常见视频格式）')
     ap.add_argument('--limit', type=int, default=0, help='最多处理多少个文件，用于试跑')
@@ -718,7 +723,7 @@ def main():
     ap.add_argument('--version', action='version', version=f'bdpan-duration {__version__}')
     args = ap.parse_args()
 
-    if not args.dir and not args.browse:
+    if not (args.dir or args.browse or args.wizard):
         ap.error(f'要扫描哪个目录？例如：{ap.prog} /学习\n'
                  f'不知道有哪些目录的话，先跑：{ap.prog} --browse')
 
@@ -734,6 +739,23 @@ def main():
     if args.browse:
         show_tree(cl, (args.dir or '/').rstrip('/') or '/')
         return
+
+    if args.wizard and not args.dir:
+        show_tree(cl, '/', hint=False)
+        print()
+        print(bold('要扫哪个？'))
+        print(dim('  把上面以 / 开头的路径粘进来。直接回车 = 扫整个网盘。'))
+        print()
+        try:
+            pick = input('> ').strip().strip('"\'')
+        except (EOFError, KeyboardInterrupt):
+            sys.exit('\n已取消。')
+        pick = pick or '/'
+        if not pick.startswith('/'):
+            pick = '/' + pick
+        args.dir = pick.rstrip('/') or '/'
+        print()
+        print(dim(f'好，扫 {args.dir}'))
 
     print()
     print(bold(f'扫描目录：{args.dir}'))
