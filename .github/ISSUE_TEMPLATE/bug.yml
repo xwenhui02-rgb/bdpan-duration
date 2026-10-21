@@ -1,0 +1,55 @@
+name: 报告问题
+description: 探测失败、时长不对、或者接口已经失效
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > [!CAUTION]
+        > **不要在这里贴 BDUSS。** 任何情况下都不需要它，贴出来等于把网盘账号交出去。
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 说清楚现象。比如「全部返回 31341」「时长比播放器短 40 分钟」「枚举到一半就停了」
+      placeholder: 扫描 300 个文件，其中 40 个列表不完整，重跑三次还是这样。
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 终端输出
+      description: 贴最后 20 行就够。**注意删掉路径里你自己的隐私信息**
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 运行 `python3 bdpan-duration.py --version`
+      placeholder: bdpan-duration 1.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: 系统与 Python 版本
+      placeholder: macOS 14.5 / Python 3.12.4
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 已确认
+      options:
+        - label: 我用的是自己的登录态（不是别人的分享链接）
+          required: true
+        - label: 我看过 README 里的「常见问题」，31341 / 120 这类错误码不是 bug
+          required: true

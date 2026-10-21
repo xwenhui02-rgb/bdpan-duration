@@ -11,6 +11,10 @@
 > [!IMPORTANT]
 > **你的 BDUSS 只存在于本机内存。** 不写磁盘、不写日志、不上传、没有任何服务端——所有请求从你的电脑直连百度，中间不经过作者或第三方。代码是单文件纯标准库，五分钟能读完。详细说明见下方「凭证边界」一节。
 
+### [🔍 先看示例报告 →](https://xwenhui02-rgb.github.io/bdpan-duration/)
+
+用真实网盘里 **962 个视频**生成的清单，347 小时 / 269 GB。不下载、不登录就能点开看它长什么样。
+
 ```bash
 python3 bdpan-duration.py /学习
 ```
@@ -65,7 +69,7 @@ flowchart LR
 需要 Python 3.7+，**不需要 pip install 任何东西**。
 
 ```bash
-git clone https://github.com/<your-name>/bdpan-duration.git
+git clone https://github.com/xwenhui02-rgb/bdpan-duration.git
 cd bdpan-duration
 
 # 先试 5 个，确认能跑通

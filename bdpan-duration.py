@@ -27,7 +27,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 
 API_LIST = 'https://pan.baidu.com/rest/2.0/xpan/file'
 API_STREAM = 'https://d.pcs.baidu.com/rest/2.0/pcs/file'
@@ -533,7 +533,18 @@ tr:last-child td{border-bottom:none}
  background:#fdf0d8;color:#96702a;border-radius:50%;font-size:10px;margin-left:6px}
 mark{background:#fff2a8;padding:0 1px}
 .hide{display:none}
-</style></head><body><div class="wrap">
+</style>
+<style>
+.gh-ribbon{position:fixed;top:16px;right:20px;z-index:99;
+ font:500 12.5px/1 -apple-system,"PingFang SC",sans-serif;color:#6b6a63;
+ text-decoration:none;background:#fff;border:1px solid #e6e4dd;
+ border-radius:999px;padding:8px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05);
+ transition:color .15s,border-color .15s,box-shadow .15s}
+.gh-ribbon:hover{color:#1a1a18;border-color:#cfccc1;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+</style></head><body>
+<a class="gh-ribbon" href="https://github.com/xwenhui02-rgb/bdpan-duration"
+   title="由 bdpan-duration 生成">← bdpan-duration</a>
+<div class="wrap">
 <h1>网盘视频清单</h1>
 <div class="sub">__TITLE__ · 生成于 __NOW__</div>
 <div class="stats">
