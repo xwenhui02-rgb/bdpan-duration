@@ -1,4 +1,15 @@
 ---
+slug: bdpan-duration
+displayName: 百度网盘视频时长盘点
+version: 1.0.0
+summary: 批量读取百度网盘视频时长，生成可搜索的资产清单（CSV / Markdown / 网页）
+license: MIT
+homepage: https://github.com/xwenhui02-rgb/bdpan-duration
+tags:
+  - baidu-netdisk
+  - video-duration
+  - media-library
+  - inventory
 name: bdpan-duration
 description: 批量读取百度网盘视频时长，生成可搜索的资产清单。当用户要求统计、盘点、整理百度网盘里的视频时长/总课时/文件清单，或者想知道某个网盘目录下视频"有多长、占多大、一共多少小时"时使用。触发词：网盘时长、百度网盘视频、统计课时、盘里视频多长、视频清单、网盘盘点、baidu pan duration、video inventory。
 ---
@@ -6,6 +17,22 @@ description: 批量读取百度网盘视频时长，生成可搜索的资产清�
 # 百度网盘视频时长盘点
 
 用 `bdpan-duration.py` 扫描百度网盘目录，输出每个视频的时长、体积、码率，并汇总成 CSV / Markdown / HTML 清单。
+
+## 环境与脚本位置
+
+- 需要 **Python 3.7+**。纯标准库，**不需要 pip install 任何东西**。
+- 脚本就在本文件同一目录下，名为 `bdpan-duration.py`。
+
+**先定位脚本，再执行。** 不要假设当前工作目录就是技能目录：
+
+```bash
+SKILL_DIR=<本 SKILL.md 所在目录的绝对路径>
+python3 "$SKILL_DIR/bdpan-duration.py" --help
+```
+
+能打印出帮助，说明路径对了。下面所有命令都用这个 `"$SKILL_DIR/bdpan-duration.py"` 形式。
+
+> `--wizard` 是给人用的交互式向导，需要手动输入，**Agent 调用时不要用**。
 
 ## 什么时候用
 
@@ -27,7 +54,7 @@ description: 批量读取百度网盘视频时长，生成可搜索的资产清�
 拿到后用环境变量传入，**不要**用 `--bduss` 参数（会留在 shell 历史）：
 
 ```bash
-BAIDU_BDUSS="<值>" python3 bdpan-duration.py <目录> ...
+BAIDU_BDUSS="<值>" python3 "$SKILL_DIR/bdpan-duration.py" <目录> ...
 ```
 
 如果用户授权自动读取，才可以用 `--from-browser`（需要 `pip install browser_cookie3`，macOS 会弹钥匙串授权）。
@@ -39,7 +66,7 @@ BAIDU_BDUSS="<值>" python3 bdpan-duration.py <目录> ...
 **不要假设你知道用户的路径。** 用户说「我的学习资料」时，`/学习` 只是猜的，猜错会白跑一轮。先浏览：
 
 ```bash
-BAIDU_BDUSS="$BDUSS" python3 bdpan-duration.py --browse
+BAIDU_BDUSS="$BDUSS" python3 "$SKILL_DIR/bdpan-duration.py" --browse
 ```
 
 输出里「→」表示视频在更深一层，把那个路径继续 `--browse` 进去，直到定位到真正装着视频的目录。确认后再往下走。
@@ -49,7 +76,7 @@ BAIDU_BDUSS="$BDUSS" python3 bdpan-duration.py --browse
 **任何情况下都先跑 5 个**，验证凭证有效、目录正确、时长可信：
 
 ```bash
-BAIDU_BDUSS="$BDUSS" python3 bdpan-duration.py /学习 --limit 5 --out /tmp/bdpan-probe
+BAIDU_BDUSS="$BDUSS" python3 "$SKILL_DIR/bdpan-duration.py" <用户目录> --limit 5 --out /tmp/bdpan-probe
 ```
 
 检查 `inventory.csv` 里的 `列表完整` 列是否为 `是`。**如果全是 `否`，说明拿到的是试看片段，数据不可信，停下来排查。**
@@ -61,7 +88,7 @@ BAIDU_BDUSS="$BDUSS" python3 bdpan-duration.py /学习 --limit 5 --out /tmp/bdpa
 ### 3. 确认后再全量
 
 ```bash
-BAIDU_BDUSS="$BDUSS" python3 bdpan-duration.py /学习 --out ./report --workers 4
+BAIDU_BDUSS="$BDUSS" python3 "$SKILL_DIR/bdpan-duration.py" <用户目录> --out ./report --workers 4
 ```
 
 1000 个文件大约 10–20 分钟。**不要擅自提高 `--workers` 到 8 以上**，会触发限流。
